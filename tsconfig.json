@@ -1,9 +1,10 @@
 {
 	"extends": "@backstage/cli/config/tsconfig.json",
-	"include": ["src", "dev"],
+	"include": ["src"],
 	"exclude": ["node_modules"],
 	"compilerOptions": {
-		"outDir": "../../dist-types/plugins/analytics-module-forwarder",
-		"rootDir": "."
+		"outDir": "./dist-types",
+		"rootDir": ".",
+		"useUnknownInCatchVariables": false
 	}
 }

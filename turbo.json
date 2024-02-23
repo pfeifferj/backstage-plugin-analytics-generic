@@ -2,7 +2,7 @@
 	"extends": ["//"],
 	"pipeline": {
 		"tsc": {
-			"outputs": ["../../dist-types/plugins/analytics-module-generic/**"],
+			"outputs": ["./dist-types/plugins/analytics-module-generic/**"],
 			"dependsOn": ["^tsc"]
 		}
 	}

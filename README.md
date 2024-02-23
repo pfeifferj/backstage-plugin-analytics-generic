@@ -1,7 +1,7 @@
-# Analytics Module: Forwarder
+# Analytics Module: Generic
 
-This plugin provides an opinionated implementation of the Backstage Analytics
-API for publishing events to generic POST endpoints such as knative sinks.
+This plugin provides a generic implementation of the Backstage Analytics
+API for publishing events to POST endpoints such as knative sinks.
 
 This module is made to work with backstage's built-in analytics plugin. The usage guide to start tracking analytics for your plugins can be found here: https://backstage.io/docs/plugins/analytics/
 
