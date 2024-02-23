@@ -24,14 +24,14 @@ import {
 	identityApiRef,
 } from '@backstage/core-plugin-api';
 
-import { GenericAnalytics } from '@pfeifferj/backstage-plugin-analytics-generic';
+import { GenericAnalyticsAPI } from '@pfeifferj/backstage-plugin-analytics-generic';
 
 export const apis: AnyApiFactory[] = [
 	// Instantiate and register the Generic Analytics API Implementation.
 	createApiFactory({
 		api: analyticsApiRef,
 		deps: { configApi: configApiRef },
-		factory: ({ configApi }) => GenericAnalytics.fromConfig(configApi),
+		factory: ({ configApi }) => GenericAnalyticsAPI.fromConfig(configApi),
 	}),
 ];
 ```
