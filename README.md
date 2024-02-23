@@ -47,6 +47,6 @@ app:
   analytics:
     generic:
       host: ${ANALYTICS_GENERIC_HOST}
-	  interval: ${ANALYTICS_GENERIC_INTERVAL} # interval in minutes to ship logs, set to 0 for instant streaming, default: 30 mins
-	  auth: ${ANALYTICS_GENERIC_AUTH} # basic auth token
+      interval: ${ANALYTICS_GENERIC_INTERVAL} # interval in minutes to ship logs, set to 0 for instant streaming, default: 30 mins
+      auth: ${ANALYTICS_GENERIC_AUTH} # basic auth token
 ```
