@@ -47,18 +47,6 @@ app:
   analytics:
     generic:
       host: ${ANALYTICS_GENERIC_HOST}
-```
-
-Note: for prod you want some kind of auth here as well and not just rely on network enforced security.
-
-4. Update CSP in your `app-config.yaml`:(optional)
-
-The following is the minimal content security policy required to load scripts from your Knative sink.
-
-```yaml
-backend:
-  csp:
-    connect-src: ["'self'", 'http:', 'https:']
-    # Add these two lines below
-    script-src: ["'self'", "'unsafe-eval'", '<generic-endpoint-url>']
+	  interval: ${ANALYTICS_GENERIC_INTERVAL} # interval in minutes to ship logs, set to 0 for instant streaming, default: 30 mins
+	  auth: ${ANALYTICS_GENERIC_AUTH} # basic auth token
 ```
