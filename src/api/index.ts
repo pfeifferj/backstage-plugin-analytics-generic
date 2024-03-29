@@ -10,25 +10,37 @@ type Options = {
 
 export class GenericAnalyticsAPI implements AnalyticsAPI {
 	private readonly configApi: ConfigApi;
-	private readonly endpoint: string;
+	private readonly host: string;
+	private readonly endpoint: string; // Constructed endpoint based on host
 	private eventQueue: { event: AnalyticsEvent; timestamp: Date }[] = [];
 	private flushInterval: number;
-	private authToken: string;
+	private authToken?: string;
+	private retryLimit: number = 3;
+	private eventRetryCounter: Map<string, number> = new Map();
 
 	constructor(options: Options) {
 		this.configApi = options.configApi;
-		this.endpoint = this.configApi.getString('app.analytics.generic.endpoint');
-		const configFlushIntervalMinutes = this.configApi.getNumber(
+		this.host = this.configApi.getString('app.analytics.generic.host');
+		this.endpoint = `${this.host}/path/to/your/analytics/endpoint`; // Adjust the path as needed
+		const configFlushIntervalMinutes = this.configApi.getOptionalNumber(
 			'app.analytics.generic.interval'
 		);
-		this.flushInterval = configFlushIntervalMinutes
-			? configFlushIntervalMinutes * 60 * 1000
-			: 30 * 60 * 1000;
-		this.authToken = this.configApi.getString(
+		this.flushInterval =
+			configFlushIntervalMinutes !== null &&
+			configFlushIntervalMinutes !== undefined
+				? configFlushIntervalMinutes * 60 * 1000
+				: 30 * 60 * 1000; // Default to 30 minutes if not specified
+		this.authToken = this.configApi.getOptionalString(
 			'app.analytics.generic.authToken'
 		);
 
-		this.startFlushCycle();
+		if (this.flushInterval === 0) {
+			// Instant streaming
+			this.captureEvent = this.instantCaptureEvent;
+		} else {
+			// Periodic flushing
+			this.startFlushCycle();
+		}
 	}
 
 	static fromConfig(config: ConfigApi) {
@@ -36,24 +48,29 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 	}
 
 	captureEvent(event: AnalyticsEvent) {
+		// This method will be overridden if instant streaming is enabled
 		this.eventQueue.push({ event, timestamp: new Date() });
+	}
+
+	private async instantCaptureEvent(event: AnalyticsEvent) {
+		// Immediately try to send the event
+		await this.flushEvents([event]);
 	}
 
 	private startFlushCycle() {
 		setInterval(() => {
-			this.flushEvents();
+			this.flushEvents(this.eventQueue.splice(0, this.eventQueue.length));
 		}, this.flushInterval);
 	}
 
-	private async flushEvents() {
-		const eventsToFlush = this.eventQueue;
-
-		if (this.eventQueue.length === 0) {
+	private async flushEvents(
+		events: { event: AnalyticsEvent; timestamp: Date }[]
+	) {
+		if (events.length === 0) {
 			return;
 		}
 
 		try {
-			this.eventQueue = [];
 			const headers: Record<string, string> = {
 				'Content-Type': 'application/json',
 			};
@@ -65,19 +82,26 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 			const response = await fetch(this.endpoint, {
 				method: 'POST',
 				headers: headers,
-				body: JSON.stringify(eventsToFlush),
+				body: JSON.stringify(events),
 			});
 
 			if (!response.ok) {
-				console.error(
-					'Failed to flush analytics events',
-					await response.text()
+				throw new Error(
+					`Server responded with non-OK status: ${response.status}`
 				);
-				this.eventQueue.push(...eventsToFlush);
 			}
 		} catch (error) {
 			console.error('Failed to flush analytics events', error);
-			this.eventQueue.push(...eventsToFlush);
+			events.forEach((event) => {
+				const eventId = JSON.stringify(event);
+				const retries = this.eventRetryCounter.get(eventId) || 0;
+				if (retries < this.retryLimit) {
+					this.eventQueue.push(event);
+					this.eventRetryCounter.set(eventId, retries + 1);
+				} else {
+					console.error('Max retries reached for event:', event);
+				}
+			});
 		}
 	}
 }
