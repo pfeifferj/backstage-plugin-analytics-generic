@@ -11,7 +11,7 @@ type Options = {
 export class GenericAnalyticsAPI implements AnalyticsAPI {
 	private readonly configApi: ConfigApi;
 	private readonly host: string;
-	private readonly endpoint: string; // Constructed endpoint based on host
+	private readonly endpoint: string;
 	private eventQueue: { event: AnalyticsEvent; timestamp: Date }[] = [];
 	private flushInterval: number;
 	private authToken?: string;
@@ -21,7 +21,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 	constructor(options: Options) {
 		this.configApi = options.configApi;
 		this.host = this.configApi.getString('app.analytics.generic.host');
-		this.endpoint = `${this.host}/path/to/your/analytics/endpoint`; // Adjust the path as needed
+		this.endpoint = this.host;
 		const configFlushIntervalMinutes = this.configApi.getOptionalNumber(
 			'app.analytics.generic.interval'
 		);
@@ -35,10 +35,8 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		);
 
 		if (this.flushInterval === 0) {
-			// Instant streaming
 			this.captureEvent = this.instantCaptureEvent;
 		} else {
-			// Periodic flushing
 			this.startFlushCycle();
 		}
 	}
@@ -48,13 +46,12 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 	}
 
 	captureEvent(event: AnalyticsEvent) {
-		// This method will be overridden if instant streaming is enabled
 		this.eventQueue.push({ event, timestamp: new Date() });
 	}
 
 	private async instantCaptureEvent(event: AnalyticsEvent) {
-		// Immediately try to send the event
-		await this.flushEvents([event]);
+		const eventWithTimestamp = { event, timestamp: new Date() };
+		await this.flushEvents([eventWithTimestamp]);
 	}
 
 	private startFlushCycle() {
