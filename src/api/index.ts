@@ -71,6 +71,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 				this.flushEvents(this.eventQueue.splice(0));
 			}
 		}, this.flushInterval);
+		console.log(`Starting flush cycle with interval: ${this.flushInterval}ms`);
 	}
 
 	private async flushEvents(
@@ -119,6 +120,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 				if (retries < this.retryLimit) {
 					this.eventQueue.push(event);
 					this.eventRetryCounter.set(eventId, retries + 1);
+					console.error(`Retrying event: ${eventId}, attempt ${retries + 1}`);
 				} else {
 					console.error(`Max retries reached for event: ${eventId}`);
 					this.errorApi.post(

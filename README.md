@@ -27,12 +27,16 @@ import {
 import { GenericAnalyticsAPI } from '@pfeifferj/backstage-plugin-analytics-generic';
 
 export const apis: AnyApiFactory[] = [
+	...
 	// Instantiate and register the Generic Analytics API Implementation.
-	createApiFactory({
-		api: analyticsApiRef,
-		deps: { configApi: configApiRef },
-		factory: ({ configApi }) => GenericAnalyticsAPI.fromConfig(configApi),
-	}),
+
+  	createApiFactory({
+    	api: analyticsApiRef,
+    	deps: { configApi: configApiRef, errorApi: errorApiRef },
+    	factory: ({ configApi, errorApi }) =>
+      		GenericAnalyticsAPI.fromConfig(configApi, errorApi),
+  	}),
+	...
 ];
 ```
 
