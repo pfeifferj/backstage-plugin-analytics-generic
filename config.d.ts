@@ -3,10 +3,14 @@ export interface Config {
 		analytics: {
 			generic: {
 				/**
-				 * Endpoint host URL, refresh interval
+				 * Endpoint host URL
 				 * @visibility frontend
 				 */
 				host: string;
+				/**
+				 * Refresh interval
+				 * @visibility frontend
+				 */
 				interval: number;
 				/**
 				 * Auth credentials
