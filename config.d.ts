@@ -3,11 +3,15 @@ export interface Config {
 		analytics: {
 			generic: {
 				/**
-				 * Endpoint host URL, refresh interval
+				 * Refresh interval
 				 * @visibility backend
 				 */
-				host: string;
 				interval: number;
+				/**
+				 * Endpoint host URL
+				 * @visibility frontend
+				 */
+				host: string;
 				/**
 				 * Auth credentials
 				 * @deepVisibility secret
