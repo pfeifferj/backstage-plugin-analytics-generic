@@ -15,8 +15,8 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 	private eventQueue: { event: AnalyticsEvent; timestamp: Date }[] = [];
 	private flushInterval: number;
 	private authToken?: string;
-	private retryLimit: number = 3;
-	private eventRetryCounter: Map<string, number> = new Map();
+	// private retryLimit: number = 3;
+	// private eventRetryCounter: Map<string, number> = new Map();
 
 	constructor(options: Options) {
 		this.configApi = options.configApi;
@@ -46,7 +46,14 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 	}
 
 	captureEvent(event: AnalyticsEvent) {
+		console.log('Capturing event:', event);
 		this.eventQueue.push({ event, timestamp: new Date() });
+		if (this.flushInterval === 0) {
+			const eventToFlush = this.eventQueue.pop();
+			if (eventToFlush) {
+				this.flushEvents([eventToFlush]);
+			}
+		}
 	}
 
 	private async instantCaptureEvent(event: AnalyticsEvent) {
@@ -56,7 +63,9 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 
 	private startFlushCycle() {
 		setInterval(() => {
-			this.flushEvents(this.eventQueue.splice(0, this.eventQueue.length));
+			if (this.eventQueue.length > 0) {
+				this.flushEvents(this.eventQueue.splice(0));
+			}
 		}, this.flushInterval);
 	}
 
@@ -64,8 +73,13 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		events: { event: AnalyticsEvent; timestamp: Date }[]
 	) {
 		if (events.length === 0) {
+			console.log('No events to flush.');
 			return;
 		}
+
+		console.log(
+			`Flushing ${events.length} events to endpoint: ${this.endpoint}`
+		);
 
 		try {
 			const headers: Record<string, string> = {
@@ -73,32 +87,27 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 			};
 
 			if (this.authToken) {
+				console.log('Adding Authorization header.');
 				headers['Authorization'] = `Basic ${this.authToken}`;
 			}
 
+			console.log('Making POST request with headers:', headers);
 			const response = await fetch(this.endpoint, {
 				method: 'POST',
 				headers: headers,
 				body: JSON.stringify(events),
 			});
 
+			console.log(`Response status: ${response.status}`);
 			if (!response.ok) {
 				throw new Error(
 					`Server responded with non-OK status: ${response.status}`
 				);
 			}
+
+			console.log('Successfully flushed events.');
 		} catch (error) {
 			console.error('Failed to flush analytics events', error);
-			events.forEach((event) => {
-				const eventId = JSON.stringify(event);
-				const retries = this.eventRetryCounter.get(eventId) || 0;
-				if (retries < this.retryLimit) {
-					this.eventQueue.push(event);
-					this.eventRetryCounter.set(eventId, retries + 1);
-				} else {
-					console.error('Max retries reached for event:', event);
-				}
-			});
 		}
 	}
 }
