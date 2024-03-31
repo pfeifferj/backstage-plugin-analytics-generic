@@ -21,7 +21,7 @@ yarn add --cwd packages/app @pfeifferj/backstage-plugin-analytics-generic
 import {
 	analyticsApiRef,
 	configApiRef,
-	identityApiRef,
+	identityApiRef, // optional: if you want to add user-context to events
 } from '@backstage/core-plugin-api';
 
 import { GenericAnalyticsAPI } from '@pfeifferj/backstage-plugin-analytics-generic';
@@ -32,9 +32,13 @@ export const apis: AnyApiFactory[] = [
 
   	createApiFactory({
     	api: analyticsApiRef,
-    	deps: { configApi: configApiRef, errorApi: errorApiRef },
-    	factory: ({ configApi, errorApi }) =>
-      		GenericAnalyticsAPI.fromConfig(configApi, errorApi),
+    	deps: {
+      		configApi: configApiRef,
+      		errorApi: errorApiRef,
+      		identityApi: identityApiRef, // optional
+    	},
+    	factory: ({ configApi, errorApi, identityApi }) =>
+      		GenericAnalyticsAPI.fromConfig(configApi, errorApi, identityApi ),
   	}),
 	...
 ];
