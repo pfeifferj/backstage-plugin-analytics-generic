@@ -4,7 +4,7 @@ export interface Config {
 			generic: {
 				/**
 				 * Endpoint host URL, refresh interval
-				 * @visibility frontend
+				 * @visibility backend
 				 */
 				host: string;
 				interval: number;
