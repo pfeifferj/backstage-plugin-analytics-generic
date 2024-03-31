@@ -1,4 +1,5 @@
 import { AnalyticsEvent, ConfigApi } from '@backstage/core-plugin-api';
+import { ErrorApi } from '@backstage/core-plugin-api';
 
 type AnalyticsAPI = {
 	captureEvent: (event: AnalyticsEvent) => void;
@@ -6,24 +7,27 @@ type AnalyticsAPI = {
 
 type Options = {
 	configApi: ConfigApi;
+	errorApi: ErrorApi;
 };
 
 export class GenericAnalyticsAPI implements AnalyticsAPI {
 	private readonly configApi: ConfigApi;
+	private readonly errorApi: ErrorApi;
 	private readonly host: string;
 	private readonly endpoint: string;
 	private eventQueue: { event: AnalyticsEvent; timestamp: Date }[] = [];
 	private flushInterval: number;
 	private authToken?: string;
-	// private retryLimit: number = 3;
-	// private eventRetryCounter: Map<string, number> = new Map();
+	private retryLimit: number = 3;
+	private eventRetryCounter: Map<string, number> = new Map();
 
 	constructor(options: Options) {
 		this.configApi = options.configApi;
-		this.host = this.configApi.getString('app.analyticsGeneric.host');
+		this.errorApi = options.errorApi;
+		this.host = this.configApi.getString('app.analytics.generic.host');
 		this.endpoint = this.host;
 		const configFlushIntervalMinutes = this.configApi.getOptionalNumber(
-			'app.analyticsGeneric.interval'
+			'app.analytics.generic.interval'
 		);
 		this.flushInterval =
 			configFlushIntervalMinutes !== null &&
@@ -31,7 +35,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 				? configFlushIntervalMinutes * 60 * 1000
 				: 30 * 60 * 1000; // Default to 30 minutes if not specified
 		this.authToken = this.configApi.getOptionalString(
-			'app.analyticsGeneric.authToken'
+			'app.analytics.generic.authToken'
 		);
 
 		if (this.flushInterval === 0) {
@@ -41,8 +45,8 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		}
 	}
 
-	static fromConfig(config: ConfigApi) {
-		return new GenericAnalyticsAPI({ configApi: config });
+	static fromConfig(config: ConfigApi, errorApi: ErrorApi) {
+		return new GenericAnalyticsAPI({ configApi: config, errorApi: errorApi });
 	}
 
 	captureEvent(event: AnalyticsEvent) {
@@ -87,18 +91,15 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 			};
 
 			if (this.authToken) {
-				console.log('Adding Authorization header.');
 				headers['Authorization'] = `Basic ${this.authToken}`;
 			}
 
-			console.log('Making POST request with headers:', headers);
 			const response = await fetch(this.endpoint, {
 				method: 'POST',
 				headers: headers,
 				body: JSON.stringify(events),
 			});
 
-			console.log(`Response status: ${response.status}`);
 			if (!response.ok) {
 				throw new Error(
 					`Server responded with non-OK status: ${response.status}`
@@ -108,6 +109,23 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 			console.log('Successfully flushed events.');
 		} catch (error) {
 			console.error('Failed to flush analytics events', error);
+			this.errorApi.post(
+				new Error(`Failed to flush analytics events: ${error}`)
+			);
+
+			events.forEach((event) => {
+				const eventId = JSON.stringify(event);
+				const retries = this.eventRetryCounter.get(eventId) || 0;
+				if (retries < this.retryLimit) {
+					this.eventQueue.push(event);
+					this.eventRetryCounter.set(eventId, retries + 1);
+				} else {
+					console.error(`Max retries reached for event: ${eventId}`);
+					this.errorApi.post(
+						new Error(`Max retries reached for event: ${eventId}`)
+					);
+				}
+			});
 		}
 	}
 }
