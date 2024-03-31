@@ -3,6 +3,11 @@ export interface Config {
 		analytics: {
 			generic: {
 				/**
+				 * Toggle debugging
+				 * @visibility frontend
+				 */
+				debug: boolean;
+				/**
 				 * Endpoint host URL
 				 * @visibility frontend
 				 */
