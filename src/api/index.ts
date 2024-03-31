@@ -1,5 +1,9 @@
-import { AnalyticsEvent, ConfigApi } from '@backstage/core-plugin-api';
-import { ErrorApi } from '@backstage/core-plugin-api';
+import {
+	AnalyticsEvent,
+	ConfigApi,
+	ErrorApi,
+	IdentityApi,
+} from '@backstage/core-plugin-api';
 
 type AnalyticsAPI = {
 	captureEvent: (event: AnalyticsEvent) => void;
@@ -8,14 +12,20 @@ type AnalyticsAPI = {
 type Options = {
 	configApi: ConfigApi;
 	errorApi: ErrorApi;
+	identityApi?: IdentityApi;
 };
 
 export class GenericAnalyticsAPI implements AnalyticsAPI {
 	private readonly configApi: ConfigApi;
 	private readonly errorApi: ErrorApi;
+	private readonly identityApi?: IdentityApi;
 	private readonly host: string;
 	private readonly endpoint: string;
-	private eventQueue: { event: AnalyticsEvent; timestamp: Date }[] = [];
+	private eventQueue: {
+		event: AnalyticsEvent;
+		timestamp: Date;
+		userId?: string;
+	}[] = [];
 	private flushInterval: number;
 	private authToken?: string;
 	private retryLimit: number = 3;
@@ -25,6 +35,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 	constructor(options: Options) {
 		this.configApi = options.configApi;
 		this.errorApi = options.errorApi;
+		this.identityApi = options.identityApi;
 		this.host = this.configApi.getString('app.analytics.generic.host');
 		this.endpoint = this.host;
 		this.debug =
@@ -49,15 +60,24 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		}
 	}
 
-	static fromConfig(config: ConfigApi, errorApi: ErrorApi) {
-		return new GenericAnalyticsAPI({ configApi: config, errorApi: errorApi });
+	static fromConfig(
+		config: ConfigApi,
+		errorApi: ErrorApi,
+		identityApi?: IdentityApi
+	) {
+		return new GenericAnalyticsAPI({
+			configApi: config,
+			errorApi: errorApi,
+			identityApi,
+		});
 	}
 
-	captureEvent(event: AnalyticsEvent) {
+	async captureEvent(event: AnalyticsEvent) {
+		const userId = await this.getUserId();
 		if (this.debug) {
-			console.log('Capturing event:', event);
+			console.log('Capturing event:', event, 'User ID:', userId);
 		}
-		this.eventQueue.push({ event, timestamp: new Date() });
+		this.eventQueue.push({ event, timestamp: new Date(), userId });
 		if (this.flushInterval === 0) {
 			const eventToFlush = this.eventQueue.pop();
 			if (eventToFlush) {
@@ -66,13 +86,22 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		}
 	}
 
+	private async getUserId(): Promise<string | undefined> {
+		if (this.identityApi) {
+			const identity = await this.identityApi.getBackstageIdentity();
+			return identity?.userEntityRef;
+		}
+		return undefined;
+	}
+
 	private async instantCaptureEvent(event: AnalyticsEvent) {
-		const eventWithTimestamp = { event, timestamp: new Date() };
+		const userId = await this.getUserId();
+		const eventWithTimestamp = { event, timestamp: new Date(), userId };
 		await this.flushEvents([eventWithTimestamp]);
 	}
 
 	private startFlushCycle() {
-		setInterval(() => {
+		setInterval(async () => {
 			if (this.eventQueue.length > 0) {
 				this.flushEvents(this.eventQueue.splice(0));
 			}
@@ -85,7 +114,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 	}
 
 	private async flushEvents(
-		events: { event: AnalyticsEvent; timestamp: Date }[]
+		events: { event: AnalyticsEvent; timestamp: Date; userId?: string }[]
 	) {
 		if (events.length === 0) {
 			if (this.debug) {
