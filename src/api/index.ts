@@ -20,10 +20,10 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 
 	constructor(options: Options) {
 		this.configApi = options.configApi;
-		this.host = this.configApi.getString('app.analytics.generic.host');
+		this.host = this.configApi.getString('app.analyticsGeneric.host');
 		this.endpoint = this.host;
 		const configFlushIntervalMinutes = this.configApi.getOptionalNumber(
-			'app.analytics.generic.interval'
+			'app.analyticsGeneric.interval'
 		);
 		this.flushInterval =
 			configFlushIntervalMinutes !== null &&
@@ -31,7 +31,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 				? configFlushIntervalMinutes * 60 * 1000
 				: 30 * 60 * 1000; // Default to 30 minutes if not specified
 		this.authToken = this.configApi.getOptionalString(
-			'app.analytics.generic.authToken'
+			'app.analyticsGeneric.authToken'
 		);
 
 		if (this.flushInterval === 0) {
