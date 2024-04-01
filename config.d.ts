@@ -21,7 +21,7 @@ export interface Config {
 				 * Auth credentials
 				 * @deepVisibility secret
 				 */
-				auth: string;
+				basicAuthToken: string;
 			};
 		};
 	};
