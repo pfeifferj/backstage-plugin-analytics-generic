@@ -72,11 +72,21 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		});
 	}
 
+	private log(message: string, isError: boolean = false): void {
+		if (this.debug) {
+			if (isError) {
+				console.error(message);
+			} else {
+				console.log(message);
+			}
+		}
+	}
+
 	async captureEvent(event: AnalyticsEvent) {
 		const userId = await this.getUserId();
-		if (this.debug) {
-			console.log('Capturing event:', event, 'User ID:', userId);
-		}
+		this.log(
+			'Capturing event: ' + JSON.stringify(event) + ' User ID: ' + userId
+		);
 		this.eventQueue.push({ event, timestamp: new Date(), userId });
 		if (this.flushInterval === 0) {
 			const eventToFlush = this.eventQueue.pop();
@@ -106,28 +116,18 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 				this.flushEvents(this.eventQueue.splice(0));
 			}
 		}, this.flushInterval);
-		if (this.debug) {
-			console.log(
-				`Starting flush cycle with interval: ${this.flushInterval}ms`
-			);
-		}
+		this.log(`Starting flush cycle with interval: ${this.flushInterval}ms`);
 	}
 
 	private async flushEvents(
 		events: { event: AnalyticsEvent; timestamp: Date; userId?: string }[]
 	) {
 		if (events.length === 0) {
-			if (this.debug) {
-				console.log('No events to flush.');
-			}
+			this.log('No events to flush.');
 			return;
 		}
 
-		if (this.debug) {
-			console.log(
-				`Flushing ${events.length} events to endpoint: ${this.endpoint}`
-			);
-		}
+		this.log(`Flushing ${events.length} events to endpoint: ${this.endpoint}`);
 
 		try {
 			const headers: Record<string, string> = {
@@ -144,23 +144,17 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 				body: JSON.stringify(events),
 			});
 
-			if (this.debug) {
-				if (!response.ok) {
-					throw new Error(
-						`Server responded with non-OK status: ${response.status}`
-					);
-				}
-			}
-			if (this.debug) {
-				console.log('Successfully flushed events.');
-			}
-		} catch (error) {
-			if (this.debug) {
-				console.error('Failed to flush analytics events', error);
-				this.errorApi.post(
-					new Error(`Failed to flush analytics events: ${error}`)
+			if (!response.ok) {
+				throw new Error(
+					`Server responded with non-OK status: ${response.status}`
 				);
 			}
+			this.log('Successfully flushed events.');
+		} catch (error) {
+			this.log('Failed to flush analytics events', true);
+			this.errorApi.post(
+				new Error(`Failed to flush analytics events: ${error}`)
+			);
 
 			events.forEach((event) => {
 				const eventId = JSON.stringify(event);
@@ -168,16 +162,12 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 				if (retries < this.retryLimit) {
 					this.eventQueue.push(event);
 					this.eventRetryCounter.set(eventId, retries + 1);
-					if (this.debug) {
-						console.error(`Retrying event: ${eventId}, attempt ${retries + 1}`);
-					}
+					this.log(`Retrying event: ${eventId}, attempt ${retries + 1}`, true);
 				} else {
-					if (this.debug) {
-						console.error(`Max retries reached for event: ${eventId}`);
-						this.errorApi.post(
-							new Error(`Max retries reached for event: ${eventId}`)
-						);
-					}
+					this.log(`Max retries reached for event: ${eventId}`, true);
+					this.errorApi.post(
+						new Error(`Max retries reached for event: ${eventId}`)
+					);
 				}
 			});
 		}
