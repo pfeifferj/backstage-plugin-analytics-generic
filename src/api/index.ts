@@ -39,8 +39,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		this.host = this.configApi.getString('app.analytics.generic.host');
 		this.endpoint = this.host;
 		this.debug =
-			this.configApi.getOptionalString('app.analytics.generic.debug') ===
-			'true';
+			this.configApi.getOptionalBoolean('app.analytics.generic.debug') === true;
 		const configFlushIntervalMinutes = this.configApi.getOptionalNumber(
 			'app.analytics.generic.interval'
 		);
