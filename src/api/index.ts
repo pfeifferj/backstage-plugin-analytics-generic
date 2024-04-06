@@ -4,6 +4,8 @@ import {
 	ErrorApi,
 	IdentityApi,
 } from '@backstage/core-plugin-api';
+import { EntityFilterQuery, CatalogApi } from '@backstage/catalog-client';
+import { Entity } from '@backstage/catalog-model';
 
 type AnalyticsAPI = {
 	captureEvent: (event: AnalyticsEvent) => void;
@@ -12,19 +14,22 @@ type AnalyticsAPI = {
 type Options = {
 	configApi: ConfigApi;
 	errorApi: ErrorApi;
-	identityApi?: IdentityApi;
+	identityApi: IdentityApi;
+	catalogApi: CatalogApi;
 };
 
 export class GenericAnalyticsAPI implements AnalyticsAPI {
 	private readonly configApi: ConfigApi;
 	private readonly errorApi: ErrorApi;
-	private readonly identityApi?: IdentityApi;
+	private readonly identityApi: IdentityApi;
+	private readonly catalogApi: CatalogApi;
 	private readonly host: string;
 	private readonly endpoint: string;
 	private eventQueue: {
 		event: AnalyticsEvent;
 		timestamp: Date;
 		userId?: string;
+		teamMetadata?: object;
 	}[] = [];
 	private flushInterval: number;
 	private basicAuthToken?: string;
@@ -36,6 +41,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		this.configApi = options.configApi;
 		this.errorApi = options.errorApi;
 		this.identityApi = options.identityApi;
+		this.catalogApi = options.catalogApi;
 		this.host = this.configApi.getString('app.analytics.generic.host');
 		this.endpoint = this.host;
 		this.debug =
@@ -62,12 +68,14 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 	static fromConfig(
 		config: ConfigApi,
 		errorApi: ErrorApi,
-		identityApi?: IdentityApi
+		identityApi: IdentityApi,
+		catalogApi: CatalogApi
 	) {
 		return new GenericAnalyticsAPI({
 			configApi: config,
 			errorApi: errorApi,
 			identityApi,
+			catalogApi,
 		});
 	}
 
@@ -83,10 +91,40 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 
 	async captureEvent(event: AnalyticsEvent) {
 		const userId = await this.getUserId();
+
+		if (!this.catalogApi) {
+			this.log('Error: catalogApi is undefined.');
+			return;
+		}
+
+		if (!userId) {
+			this.log('Error: userId is undefined.');
+			return;
+		}
+
+		const teamEntity = await this.getUserEntity(this.catalogApi, userId);
+
+		if (!teamEntity || !teamEntity.metadata.name) {
+			this.log('Error: teamEntity is undefined or lacks a name.');
+			return;
+		}
+
+		if (!this.catalogApi) {
+			this.log('Error: catalogApi is undefined.');
+			return;
+		}
+
+		const teamName = teamEntity.metadata.name;
+		const teamMetadata = await this.getTeamEntities(this.catalogApi, teamName);
 		this.log(
 			'Capturing event: ' + JSON.stringify(event) + ' User ID: ' + userId
 		);
-		this.eventQueue.push({ event, timestamp: new Date(), userId });
+		this.eventQueue.push({
+			event,
+			timestamp: new Date(),
+			userId,
+			teamMetadata,
+		});
 		if (this.flushInterval === 0) {
 			const eventToFlush = this.eventQueue.pop();
 			if (eventToFlush) {
@@ -103,9 +141,53 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		return undefined;
 	}
 
+	private async getUserEntity(
+		catalogApi: CatalogApi,
+		userId: string
+	): Promise<Entity | undefined> {
+		const { items: users } = await catalogApi.getEntities({
+			filter: { 'metadata.name': userId },
+		});
+
+		return users[0];
+	}
+
+	private async getTeamEntities(
+		catalogApi: CatalogApi,
+		teamName: string
+	): Promise<Entity[]> {
+		const filter: EntityFilterQuery = [
+			{
+				'relations.ownedBy': `group:default/${teamName}`,
+				kind: ['Component', 'API', 'System'],
+			},
+		];
+
+		try {
+			const { items } = await catalogApi.getEntities({ filter });
+			return items;
+		} catch (error) {
+			console.error(`Error fetching team entities for ${teamName}:`, error);
+			return [];
+		}
+	}
+
 	private async instantCaptureEvent(event: AnalyticsEvent) {
 		const userId = await this.getUserId();
-		const eventWithTimestamp = { event, timestamp: new Date(), userId };
+
+		if (!userId) {
+			this.log('Error: userId is undefined.');
+			return;
+		}
+
+		const teamEntity = await this.getUserEntity(this.catalogApi, userId);
+
+		const eventWithTimestamp = {
+			event,
+			timestamp: new Date(),
+			userId,
+			teamEntity,
+		};
 		await this.flushEvents([eventWithTimestamp]);
 	}
 
