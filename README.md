@@ -19,12 +19,17 @@ yarn add --cwd packages/app @pfeifferj/backstage-plugin-analytics-generic
 ```tsx
 // packages/app/src/apis.ts
 import {
+  	AnyApiFactory,
+  	createApiFactory,
+  	discoveryApiRef,
 	analyticsApiRef,
 	configApiRef,
+	errorApiRef,
 	identityApiRef, // optional: if you want to add user-context to events
 } from '@backstage/core-plugin-api';
 
 import { GenericAnalyticsAPI } from '@pfeifferj/backstage-plugin-analytics-generic';
+import { catalogApiRef } from '@backstage/plugin-catalog-react';
 
 export const apis: AnyApiFactory[] = [
 	...
@@ -36,9 +41,15 @@ export const apis: AnyApiFactory[] = [
       		configApi: configApiRef,
       		errorApi: errorApiRef,
       		identityApi: identityApiRef, // optional
+			catalogApi: catalogApiRef,
     	},
     	factory: ({ configApi, errorApi, identityApi }) =>
-      		GenericAnalyticsAPI.fromConfig(configApi, errorApi, identityApi ),
+      		GenericAnalyticsAPI.fromConfig(
+				configApi,
+				errorApi,
+				identityApi,
+				catalogApi
+			),
   	}),
 	...
 ];
