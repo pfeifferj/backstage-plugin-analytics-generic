@@ -4,7 +4,7 @@ import {
 	ErrorApi,
 	IdentityApi,
 } from '@backstage/core-plugin-api';
-import { EntityFilterQuery, CatalogApi } from '@backstage/catalog-client';
+import { CatalogApi } from '@backstage/catalog-client';
 import { Entity } from '@backstage/catalog-model';
 
 type AnalyticsAPI = {
@@ -101,8 +101,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 			return;
 		}
 
-		const teamName = teamEntity.metadata.name;
-		const teamMetadata = await this.getTeamEntities(teamName);
+		const teamMetadata = await this.getTeamEntities(userId);
 
 		this.log(
 			'Capturing event: ' +
@@ -110,7 +109,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 				' User ID: ' +
 				userId +
 				' Team Metadata: ' +
-				teamMetadata
+				JSON.stringify(teamMetadata)
 		);
 
 		this.eventQueue.push({
@@ -143,7 +142,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		return users[0];
 	}
 
-	private async getTeamEntities(teamName: string): Promise<Entity[]> {
+	/* private async getTeamEntities(teamName: string): Promise<Entity[]> {
 		const filter: EntityFilterQuery = [
 			{
 				'relations.ownedBy': `group:default/${teamName}`,
@@ -157,6 +156,26 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 			console.error(`Error fetching team entities for ${teamName}:`, error);
 			return [];
 		}
+	} */
+
+	private async getTeamEntities(userId: string): Promise<Entity[]> {
+		const userEntity = await this.getUserEntity(userId);
+		if (!userEntity || !userEntity.relations) {
+			this.log(
+				`User entity not found or lacks relations for user ID: ${userId}`
+			);
+			return [];
+		}
+
+		const teamRefs = userEntity.relations
+			.filter((relation) => relation.type === 'memberOf')
+			.map((relation) => relation.targetRef);
+
+		const { items: teamEntities } = await this.catalogApi.getEntitiesByRefs({
+			entityRefs: teamRefs,
+		});
+
+		return teamEntities.filter((entity) => entity !== undefined) as Entity[];
 	}
 
 	private async instantCaptureEvent(event: AnalyticsEvent) {
