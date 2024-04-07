@@ -184,6 +184,10 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		}
 
 		const teamEntity = await this.getUserEntity(this.catalogApi, userId);
+		if (!teamEntity || !teamEntity.metadata.name) {
+			this.log('Error: teamEntity is undefined or lacks a name.');
+			return;
+		}
 
 		const eventWithTimestamp = {
 			event,
