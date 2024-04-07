@@ -204,7 +204,12 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 	}
 
 	private async flushEvents(
-		events: { event: AnalyticsEvent; timestamp: Date; userId?: string }[]
+		events: {
+			event: AnalyticsEvent;
+			timestamp: Date;
+			userId?: string;
+			teamMetadata?: Entity[];
+		}[]
 	) {
 		if (events.length === 0) {
 			this.log('No events to flush.');
