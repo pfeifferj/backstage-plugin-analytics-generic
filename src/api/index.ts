@@ -29,7 +29,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		event: AnalyticsEvent;
 		timestamp: Date;
 		userId?: string;
-		teamMetadata?: object;
+		teamMetadata?: Entity[];
 	}[] = [];
 	private flushInterval: number;
 	private basicAuthToken?: string;
@@ -91,7 +91,6 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 
 	async captureEvent(event: AnalyticsEvent) {
 		const userId = await this.getUserId();
-
 		if (!this.catalogApi) {
 			this.log('Error: catalogApi is undefined.');
 			return;
@@ -103,7 +102,6 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		}
 
 		const teamEntity = await this.getUserEntity(this.catalogApi, userId);
-
 		if (!teamEntity || !teamEntity.metadata.name) {
 			this.log('Error: teamEntity is undefined or lacks a name.');
 			return;
@@ -117,7 +115,12 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		const teamName = teamEntity.metadata.name;
 		const teamMetadata = await this.getTeamEntities(this.catalogApi, teamName);
 		this.log(
-			'Capturing event: ' + JSON.stringify(event) + ' User ID: ' + userId
+			'Capturing event: ' +
+				JSON.stringify(event) +
+				' User ID: ' +
+				userId +
+				' Team Metadata: ' +
+				teamMetadata
 		);
 		this.eventQueue.push({
 			event,
