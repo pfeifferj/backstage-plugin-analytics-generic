@@ -96,8 +96,8 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		}
 
 		const teamEntity = await this.getUserEntity(userId);
-		if (!teamEntity || !teamEntity.metadata.name) {
-			this.log('Error: teamEntity is undefined or lacks a name.');
+		if (!teamEntity) {
+			this.log('Error: teamEntity is undefined.');
 			return;
 		}
 
@@ -141,22 +141,6 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		});
 		return users[0];
 	}
-
-	/* private async getTeamEntities(teamName: string): Promise<Entity[]> {
-		const filter: EntityFilterQuery = [
-			{
-				'relations.ownedBy': `group:default/${teamName}`,
-				kind: ['Component', 'API', 'System'],
-			},
-		];
-		try {
-			const { items } = await this.catalogApi.getEntities({ filter });
-			return items;
-		} catch (error) {
-			console.error(`Error fetching team entities for ${teamName}:`, error);
-			return [];
-		}
-	} */
 
 	private async getTeamEntities(userId: string): Promise<Entity[]> {
 		const userEntity = await this.getUserEntity(userId);
