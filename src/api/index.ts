@@ -57,7 +57,6 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		this.basicAuthToken = this.configApi.getOptionalString(
 			'app.analytics.generic.basicAuthToken'
 		);
-
 		if (this.flushInterval === 0) {
 			this.captureEvent = this.instantCaptureEvent;
 		} else {
@@ -91,29 +90,20 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 
 	async captureEvent(event: AnalyticsEvent) {
 		const userId = await this.getUserId();
-		if (!this.catalogApi) {
-			this.log('Error: catalogApi is undefined.');
-			return;
-		}
-
 		if (!userId) {
 			this.log('Error: userId is undefined.');
 			return;
 		}
 
-		const teamEntity = await this.getUserEntity(this.catalogApi, userId);
+		const teamEntity = await this.getUserEntity(userId);
 		if (!teamEntity || !teamEntity.metadata.name) {
 			this.log('Error: teamEntity is undefined or lacks a name.');
 			return;
 		}
 
-		if (!this.catalogApi) {
-			this.log('Error: catalogApi is undefined.');
-			return;
-		}
-
 		const teamName = teamEntity.metadata.name;
-		const teamMetadata = await this.getTeamEntities(this.catalogApi, teamName);
+		const teamMetadata = await this.getTeamEntities(teamName);
+
 		this.log(
 			'Capturing event: ' +
 				JSON.stringify(event) +
@@ -122,12 +112,14 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 				' Team Metadata: ' +
 				teamMetadata
 		);
+
 		this.eventQueue.push({
 			event,
 			timestamp: new Date(),
 			userId,
 			teamMetadata,
 		});
+
 		if (this.flushInterval === 0) {
 			const eventToFlush = this.eventQueue.pop();
 			if (eventToFlush) {
@@ -144,30 +136,22 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		return undefined;
 	}
 
-	private async getUserEntity(
-		catalogApi: CatalogApi,
-		userId: string
-	): Promise<Entity | undefined> {
-		const { items: users } = await catalogApi.getEntities({
+	private async getUserEntity(userId: string): Promise<Entity | undefined> {
+		const { items: users } = await this.catalogApi.getEntities({
 			filter: { 'metadata.name': userId },
 		});
-
 		return users[0];
 	}
 
-	private async getTeamEntities(
-		catalogApi: CatalogApi,
-		teamName: string
-	): Promise<Entity[]> {
+	private async getTeamEntities(teamName: string): Promise<Entity[]> {
 		const filter: EntityFilterQuery = [
 			{
 				'relations.ownedBy': `group:default/${teamName}`,
 				kind: ['Component', 'API', 'System'],
 			},
 		];
-
 		try {
-			const { items } = await catalogApi.getEntities({ filter });
+			const { items } = await this.catalogApi.getEntities({ filter });
 			return items;
 		} catch (error) {
 			console.error(`Error fetching team entities for ${teamName}:`, error);
@@ -177,13 +161,12 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 
 	private async instantCaptureEvent(event: AnalyticsEvent) {
 		const userId = await this.getUserId();
-
 		if (!userId) {
 			this.log('Error: userId is undefined.');
 			return;
 		}
 
-		const teamEntity = await this.getUserEntity(this.catalogApi, userId);
+		const teamEntity = await this.getUserEntity(userId);
 		if (!teamEntity || !teamEntity.metadata.name) {
 			this.log('Error: teamEntity is undefined or lacks a name.');
 			return;
@@ -195,6 +178,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 			userId,
 			teamEntity,
 		};
+
 		await this.flushEvents([eventWithTimestamp]);
 	}
 
@@ -226,7 +210,6 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 			const headers: Record<string, string> = {
 				'Content-Type': 'application/json',
 			};
-
 			if (this.basicAuthToken) {
 				headers['Authorization'] = `Basic ${this.basicAuthToken}`;
 			}
@@ -242,6 +225,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 					`Server responded with non-OK status: ${response.status}`
 				);
 			}
+
 			this.log('Successfully flushed events.');
 		} catch (error) {
 			this.log('Failed to flush analytics events', true);
