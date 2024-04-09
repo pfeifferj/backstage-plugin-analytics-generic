@@ -101,7 +101,20 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 			return;
 		}
 
-		const teamMetadata = await this.getTeamEntities(userId);
+		let teamMetadata: Entity[] | undefined;
+
+		try {
+			teamMetadata = await this.getTeamEntities(userId);
+			if (!teamMetadata || teamMetadata.length === 0) {
+				throw new Error(
+					`teamEntity is undefined or lacks a name for userId: ${userId}`
+				);
+			}
+		} catch (error) {
+			this.log(`Error retrieving team metadata: ${error}`, true);
+			// Instead of returning, handle the error gracefully and continue
+			teamMetadata = []; // Assign an empty array or appropriate default value
+		}
 
 		this.log(
 			'Capturing event: ' +
@@ -155,6 +168,11 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 			.filter((relation) => relation.type === 'memberOf')
 			.map((relation) => relation.targetRef);
 
+		if (!teamRefs) {
+			this.log(`Teams ref not found for ${userId}`);
+			return [];
+		}
+
 		const { items: teamEntities } = await this.catalogApi.getEntitiesByRefs({
 			entityRefs: teamRefs,
 		});
@@ -170,8 +188,8 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		}
 
 		const teamEntity = await this.getUserEntity(userId);
-		if (!teamEntity || !teamEntity.metadata.name) {
-			this.log('Error: teamEntity is undefined or lacks a name.');
+		if (!teamEntity) {
+			this.log('Error: teamEntity is undefined.');
 			return;
 		}
 
