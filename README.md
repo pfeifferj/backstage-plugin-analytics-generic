@@ -40,15 +40,11 @@ export const apis: AnyApiFactory[] = [
     	deps: {
       		configApi: configApiRef,
       		errorApi: errorApiRef,
-      		identityApi: identityApiRef, // optional
-			catalogApi: catalogApiRef,
     	},
-    	factory: ({ configApi, errorApi, identityApi }) =>
+    	factory: ({ configApi, errorApi }) =>
       		GenericAnalyticsAPI.fromConfig(
 				configApi,
 				errorApi,
-				identityApi,
-				catalogApi
 			),
   	}),
 	...
