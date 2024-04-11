@@ -148,10 +148,18 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 	}
 
 	private async getUserEntity(userId: string): Promise<Entity | undefined> {
-		const { items: users } = await this.catalogApi.getEntities({
-			filter: { 'metadata.name': userId },
-		});
-		return users[0];
+		try {
+			const { items: users } = await this.catalogApi.getEntities({
+				filter: { 'metadata.name': userId },
+			});
+			return users[0];
+		} catch (error) {
+			this.log(
+				`Error retrieving user entity for userId: ${userId} - ${error}`,
+				true
+			);
+			return undefined;
+		}
 	}
 
 	private async getTeamEntities(userId: string): Promise<Entity[]> {
