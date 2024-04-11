@@ -5,12 +5,6 @@ import {
 	IdentityApi,
 } from '@backstage/core-plugin-api';
 import { CatalogApi } from '@backstage/catalog-client';
-import {
-	CompoundEntityRef,
-	UserEntity,
-	RELATION_MEMBER_OF,
-} from '@backstage/catalog-model';
-import { useEntity, getEntityRelations } from '@backstage/plugin-catalog-react';
 
 type AnalyticsAPI = {
 	captureEvent: (event: AnalyticsEvent) => void;
@@ -28,11 +22,12 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 	private readonly errorApi: ErrorApi;
 	private readonly host: string;
 	private readonly endpoint: string;
+	private readonly identityApi: IdentityApi;
 	private eventQueue: {
 		event: AnalyticsEvent;
 		timestamp: Date;
-		user?: UserEntity[];
-		teamMetadata?: CompoundEntityRef[];
+		user?: string;
+		teamMetadata?: string[];
 	}[] = [];
 	private flushInterval: number;
 	private basicAuthToken?: string;
@@ -45,6 +40,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		this.errorApi = options.errorApi;
 		this.host = this.configApi.getString('app.analytics.generic.host');
 		this.endpoint = this.host;
+		this.identityApi = options.identityApi;
 		this.debug =
 			this.configApi.getOptionalBoolean('app.analytics.generic.debug') === true;
 		const configFlushIntervalMinutes = this.configApi.getOptionalNumber(
@@ -90,14 +86,17 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 	}
 
 	async captureEvent(event: AnalyticsEvent) {
-		const { entity: user } = useEntity<UserEntity>();
+		const user = await this.getUser();
 		if (!user) {
-			this.log('User not found');
+			this.log('Error: user is undefined.');
+			return;
 		}
 
-		const teamMetadata = getEntityRelations(user, RELATION_MEMBER_OF, {
-			kind: 'Group',
-		});
+		const teamMetadata = await this.getGroup();
+		if (!user) {
+			this.log('Error: team is undefined.');
+			return;
+		}
 
 		this.log(
 			'Capturing event: ' +
@@ -105,14 +104,14 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 				' User ID: ' +
 				user +
 				' Team Metadata: ' +
-				(teamMetadata.length > 0 ? JSON.stringify(teamMetadata) : 'None')
+				teamMetadata
 		);
 
 		this.eventQueue.push({
 			event,
 			timestamp: new Date(),
-			user: [user],
-			teamMetadata,
+			user: user,
+			teamMetadata: teamMetadata,
 		});
 
 		if (this.flushInterval === 0) {
@@ -123,15 +122,34 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		}
 	}
 
+	private async getUser(): Promise<string | undefined> {
+		if (this.identityApi) {
+			const identity = await this.identityApi.getBackstageIdentity();
+			return identity?.userEntityRef;
+		}
+		return undefined;
+	}
+
+	private async getGroup(): Promise<string[] | undefined> {
+		if (this.identityApi) {
+			const identity = await this.identityApi.getBackstageIdentity();
+			return identity?.ownershipEntityRefs;
+		}
+		return undefined;
+	}
+
 	private async instantCaptureEvent(event: AnalyticsEvent) {
-		const { entity: user } = useEntity<UserEntity>();
+		const user = await this.getUser();
 		if (!user) {
-			this.log('User not found');
+			this.log('Error: user is undefined.');
+			return;
 		}
 
-		const teamMetadata = getEntityRelations(user, RELATION_MEMBER_OF, {
-			kind: 'Group',
-		});
+		const teamMetadata = await this.getGroup();
+		if (!user) {
+			this.log('Error: team is undefined.');
+			return;
+		}
 
 		this.log(
 			'Capturing event: ' +
@@ -139,13 +157,13 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 				' User ID: ' +
 				user +
 				' Team Metadata: ' +
-				(teamMetadata.length > 0 ? JSON.stringify(teamMetadata) : 'None')
+				teamMetadata
 		);
 
 		const eventWithTimestamp = {
 			event,
 			timestamp: new Date(),
-			user: [user],
+			user: user,
 			teamMetadata,
 		};
 
@@ -165,8 +183,8 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		events: {
 			event: AnalyticsEvent;
 			timestamp: Date;
-			user?: UserEntity[];
-			teamMetadata?: CompoundEntityRef[];
+			user?: string;
+			teamMetadata?: string[];
 		}[]
 	) {
 		if (events.length === 0) {
