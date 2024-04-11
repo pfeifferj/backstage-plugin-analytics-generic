@@ -112,8 +112,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 			}
 		} catch (error) {
 			this.log(`Error retrieving team metadata: ${error}`, true);
-			// Instead of returning, handle the error gracefully and continue
-			teamMetadata = []; // Assign an empty array or appropriate default value
+			teamMetadata = [];
 		}
 
 		this.log(
@@ -122,14 +121,14 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 				' User ID: ' +
 				userId +
 				' Team Metadata: ' +
-				JSON.stringify(teamMetadata)
+				(teamMetadata.length > 0 ? JSON.stringify(teamMetadata) : 'None')
 		);
 
 		this.eventQueue.push({
 			event,
 			timestamp: new Date(),
 			userId,
-			teamMetadata,
+			teamMetadata: teamMetadata.length > 0 ? teamMetadata : undefined,
 		});
 
 		if (this.flushInterval === 0) {
