@@ -5,6 +5,7 @@ import {
 	IdentityApi,
 } from '@backstage/core-plugin-api';
 import { CatalogApi } from '@backstage/catalog-client';
+import { Entity } from '@backstage/catalog-model';
 
 type AnalyticsAPI = {
 	captureEvent: (event: AnalyticsEvent) => void;
@@ -19,6 +20,7 @@ type Options = {
 
 export class GenericAnalyticsAPI implements AnalyticsAPI {
 	private readonly configApi: ConfigApi;
+	private readonly catalogApi: CatalogApi;
 	private readonly errorApi: ErrorApi;
 	private readonly host: string;
 	private readonly endpoint: string;
@@ -27,7 +29,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		event: AnalyticsEvent;
 		timestamp: Date;
 		user?: string;
-		teamMetadata?: string[];
+		teamMetadata?: Entity;
 	}[] = [];
 	private flushInterval: number;
 	private basicAuthToken?: string;
@@ -38,9 +40,11 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 	constructor(options: Options) {
 		this.configApi = options.configApi;
 		this.errorApi = options.errorApi;
+		this.catalogApi = options.catalogApi;
 		this.host = this.configApi.getString('app.analytics.generic.host');
 		this.endpoint = this.host;
 		this.identityApi = options.identityApi;
+
 		this.debug =
 			this.configApi.getOptionalBoolean('app.analytics.generic.debug') === true;
 		const configFlushIntervalMinutes = this.configApi.getOptionalNumber(
@@ -87,16 +91,14 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 
 	async captureEvent(event: AnalyticsEvent) {
 		const user = await this.getUser();
-		if (!user) {
+		if (user) {
+		} else {
 			this.log('Error: user is undefined.');
 			return;
 		}
 
-		const teamMetadata = await this.getGroup();
-		if (!user) {
-			this.log('Error: team is undefined.');
-			return;
-		}
+		const teamMetadata = await this.catalogApi.getEntityByRef(user);
+		// const teamMetadata = await this.getGroup(user);
 
 		this.log(
 			'Capturing event: ' +
@@ -130,13 +132,24 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 		return undefined;
 	}
 
-	private async getGroup(): Promise<string[] | undefined> {
-		if (this.identityApi) {
-			const identity = await this.identityApi.getBackstageIdentity();
-			return identity?.ownershipEntityRefs;
-		}
-		return undefined;
-	}
+	// private async getGroup(user: string): Promise<Entity> {
+	// try {
+	// const entity: Entity = await this.catalogApi.getEntityByRef(user);
+
+	// const [entityType, rest] = user.split(':');
+	// const [entityNamespace, entityName] = rest.split('/');
+
+	// const entity: Entity = await this.catalogApi.getEntityByName({
+	// kind: entityType,
+	// namespace: entityNamespace,
+	// name: entityName,
+	// });
+
+	// return entity;
+	// } catch (error) {
+	// console.error('Failed to fetch entity ancestry:', error);
+	// }
+	// }
 
 	private async instantCaptureEvent(event: AnalyticsEvent) {
 		const user = await this.getUser();
@@ -145,11 +158,8 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 			return;
 		}
 
-		const teamMetadata = await this.getGroup();
-		if (!user) {
-			this.log('Error: team is undefined.');
-			return;
-		}
+		const teamMetadata = await this.catalogApi.getEntityByRef(user);
+		// const teamMetadata = await this.getGroup(user);
 
 		this.log(
 			'Capturing event: ' +
@@ -184,7 +194,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 			event: AnalyticsEvent;
 			timestamp: Date;
 			user?: string;
-			teamMetadata?: string[];
+			teamMetadata?: Entity;
 		}[]
 	) {
 		if (events.length === 0) {
