@@ -146,6 +146,11 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
   async captureEvent(event: AnalyticsEvent) {
     this.log(`captureEvent called with event: ${JSON.stringify(event)}`);
     this.sessionId = this.readSessionIdFromCookie();
+    if (!this.sessionId) {
+      this.sessionId = this.generateSessionId();
+      document.cookie = `sessionId=${this.sessionId}; path=/`;
+      this.log(`Generated and set sessionId: ${this.sessionId}`);
+    }
     const user = await this.getUser();
     if (!user) {
       this.log("Error: user is undefined.");
@@ -198,6 +203,11 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
   private async instantCaptureEvent(event: AnalyticsEvent) {
     this.log(`instantCaptureEvent called with event: ${JSON.stringify(event)}`);
     this.sessionId = this.readSessionIdFromCookie();
+    if (!this.sessionId) {
+      this.sessionId = this.generateSessionId();
+      document.cookie = `sessionId=${this.sessionId}; path=/`;
+      this.log(`Generated and set sessionId: ${this.sessionId}`);
+    }
     const user = await this.getUser();
     if (!user) {
       this.log("Error: user is undefined.");
