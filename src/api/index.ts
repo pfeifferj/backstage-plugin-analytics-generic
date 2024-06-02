@@ -94,8 +94,14 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
   private handleSessionStateChange = (sessionState: SessionState) => {
     if (sessionState === SessionState.SignedIn) {
       this.sessionId = this.generateSessionId();
+      this.log(
+        `Session State: SignedIn, generated sessionId: ${this.sessionId}`
+      );
     } else if (sessionState === SessionState.SignedOut) {
       this.sessionId = undefined;
+      this.log(`Session State: SignedOut, cleared sessionId`);
+    } else {
+      this.log(`Session State: ${sessionState}, no action taken`);
     }
   };
 
@@ -235,7 +241,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 
       this.log("Successfully flushed events.");
     } catch (error) {
-      this.log("Failed to flush analytics events", true);
+      this.log(`Failed to flush analytics events: ${error}`, true);
       this.errorApi.post(
         new Error(`Failed to flush analytics events: ${error}`)
       );
