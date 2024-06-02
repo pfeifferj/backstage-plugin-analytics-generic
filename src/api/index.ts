@@ -54,6 +54,11 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 
     this.debug =
       this.configApi.getOptionalBoolean("app.analytics.generic.debug") === true;
+    if (this.debug) {
+      console.log("Debug mode is enabled.");
+    } else {
+      console.log("Debug mode is disabled.");
+    }
     const configFlushIntervalMinutes = this.configApi.getOptionalNumber(
       "app.analytics.generic.interval"
     );
@@ -92,10 +97,13 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
   }
 
   private handleSessionStateChange = (sessionState: SessionState) => {
+    this.log(`Session state changed to: ${sessionState}`);
     if (sessionState === SessionState.SignedIn) {
       this.sessionId = this.generateSessionId();
+      this.log(`Generated sessionId: ${this.sessionId}`);
     } else if (sessionState === SessionState.SignedOut) {
       this.sessionId = undefined;
+      this.log(`Cleared sessionId`);
     }
   };
 
@@ -235,7 +243,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 
       this.log("Successfully flushed events.");
     } catch (error) {
-      this.log("Failed to flush analytics events", true);
+      this.log(`Failed to flush analytics events: ${error}`, true);
       this.errorApi.post(
         new Error(`Failed to flush analytics events: ${error}`)
       );
