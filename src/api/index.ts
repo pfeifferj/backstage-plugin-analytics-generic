@@ -103,15 +103,34 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
     this.log(`Session state changed to: ${sessionState}`);
     if (sessionState === SessionState.SignedIn) {
       this.sessionId = this.generateSessionId();
+      document.cookie = `sessionId=${this.sessionId}; path=/`;
       this.log(`Generated sessionId: ${this.sessionId}`);
     } else if (sessionState === SessionState.SignedOut) {
       this.sessionId = undefined;
+      document.cookie =
+        "sessionId=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
       this.log(`Cleared sessionId`);
     }
   };
 
   private generateSessionId(): string {
     return Math.random().toString(36).substring(2) + Date.now().toString(36);
+  }
+
+  private readSessionIdFromCookie(): string | undefined {
+    const name = "sessionId=";
+    const decodedCookie = decodeURIComponent(document.cookie);
+    const ca = decodedCookie.split(";");
+    for (let i = 0; i < ca.length; i++) {
+      let c = ca[i];
+      while (c.charAt(0) === " ") {
+        c = c.substring(1);
+      }
+      if (c.indexOf(name) === 0) {
+        return c.substring(name.length, c.length);
+      }
+    }
+    return undefined;
   }
 
   private log(message: string, isError: boolean = false): void {
@@ -126,6 +145,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 
   async captureEvent(event: AnalyticsEvent) {
     this.log(`captureEvent called with event: ${JSON.stringify(event)}`);
+    this.sessionId = this.readSessionIdFromCookie();
     const user = await this.getUser();
     if (!user) {
       this.log("Error: user is undefined.");
@@ -177,6 +197,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 
   private async instantCaptureEvent(event: AnalyticsEvent) {
     this.log(`instantCaptureEvent called with event: ${JSON.stringify(event)}`);
+    this.sessionId = this.readSessionIdFromCookie();
     const user = await this.getUser();
     if (!user) {
       this.log("Error: user is undefined.");
