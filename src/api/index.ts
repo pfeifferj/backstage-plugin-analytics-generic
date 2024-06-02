@@ -56,8 +56,6 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
       this.configApi.getOptionalBoolean("app.analytics.generic.debug") === true;
     if (this.debug) {
       console.log("Debug mode is enabled.");
-    } else {
-      console.log("Debug mode is disabled.");
     }
     const configFlushIntervalMinutes = this.configApi.getOptionalNumber(
       "app.analytics.generic.interval"
@@ -71,7 +69,12 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
       "app.analytics.generic.basicAuthToken"
     );
 
-    this.sessionApi.sessionState$().subscribe(this.handleSessionStateChange);
+    // Handle session state changes with error handling
+    try {
+      this.sessionApi.sessionState$().subscribe(this.handleSessionStateChange);
+    } catch (error) {
+      this.log(`Failed to subscribe to session state changes: ${error}`, true);
+    }
 
     if (this.flushInterval === 0) {
       this.captureEvent = this.instantCaptureEvent;
@@ -122,6 +125,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
   }
 
   async captureEvent(event: AnalyticsEvent) {
+    this.log(`captureEvent called with event: ${JSON.stringify(event)}`);
     const user = await this.getUser();
     if (!user) {
       this.log("Error: user is undefined.");
@@ -136,7 +140,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
         " User ID: " +
         user +
         " Team Metadata: " +
-        teamMetadata +
+        JSON.stringify(teamMetadata) +
         " Session ID: " +
         this.sessionId
     );
@@ -158,14 +162,21 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
   }
 
   private async getUser(): Promise<string | undefined> {
-    if (this.identityApi) {
-      const identity = await this.identityApi.getBackstageIdentity();
-      return identity?.userEntityRef;
+    this.log(`getUser called`);
+    try {
+      if (this.identityApi) {
+        const identity = await this.identityApi.getBackstageIdentity();
+        this.log(`Identity: ${JSON.stringify(identity)}`);
+        return identity?.userEntityRef;
+      }
+    } catch (error) {
+      this.log(`Failed to get user identity: ${error}`, true);
     }
     return undefined;
   }
 
   private async instantCaptureEvent(event: AnalyticsEvent) {
+    this.log(`instantCaptureEvent called with event: ${JSON.stringify(event)}`);
     const user = await this.getUser();
     if (!user) {
       this.log("Error: user is undefined.");
@@ -180,7 +191,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
         " User ID: " +
         user +
         " Team Metadata: " +
-        teamMetadata +
+        JSON.stringify(teamMetadata) +
         " Session ID: " +
         this.sessionId
     );
@@ -197,6 +208,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
   }
 
   private startFlushCycle() {
+    this.log(`startFlushCycle called`);
     setInterval(async () => {
       if (this.eventQueue.length > 0) {
         this.flushEvents(this.eventQueue.splice(0));
@@ -214,6 +226,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
       sessionId?: string;
     }[]
   ) {
+    this.log(`flushEvents called with ${events.length} events`);
     if (events.length === 0) {
       this.log("No events to flush.");
       return;
