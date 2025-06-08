@@ -63,11 +63,13 @@ events to a Knative sink. All that's needed is your Knative sink Host:
 ```yaml
 # app-config.yaml
 app:
-  analyticsGeneric:
-	host: ${ANALYTICS_GENERIC_HOST}
-	interval: ${ANALYTICS_GENERIC_INTERVAL} # interval in minutes to ship logs, set to 0 for instant streaming. default: 30 mins
-	basicAuthToken: ${ANALYTICS_GENERIC_AUTH} # basic auth token (optional)
-	debug: true # logs events & debugging info in console & frontend. default: false (optional)
+  analytics:
+    generic:
+      host: ${ANALYTICS_GENERIC_HOST}
+      interval: ${ANALYTICS_GENERIC_INTERVAL} # interval in minutes to ship logs, set to 0 for instant streaming. default: 30 mins
+      basicAuthToken: ${ANALYTICS_GENERIC_BASIC_AUTH} # basic auth token (optional)
+      bearerAuthToken: ${ANALYTICS_GENERIC_BEARER_TOKEN} # bearer token for JWT/OAuth (optional)
+      debug: true # logs events & debugging info in console & frontend. default: false (optional)
 
 ...
 backend:
@@ -75,3 +77,12 @@ backend:
     ...
 	Access-Control-Allow-Origin: '*' # your endpoint
 ```
+
+## Authentication
+
+The plugin supports two authentication methods for securing your analytics endpoint:
+
+- **Basic Authentication**: Set `basicAuthToken` to a base64-encoded `username:password` string
+- **Bearer Token**: Set `bearerAuthToken` to a JWT token or OAuth bearer token
+
+If both are configured, basic authentication takes precedence. Choose the method that matches your endpoint's authentication requirements.
