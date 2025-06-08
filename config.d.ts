@@ -27,6 +27,11 @@ export interface Config {
 				 * @deepVisibility secret
 				 */
 				bearerAuthToken?: string;
+				/**
+				 * Enable team metadata capture from catalog API
+				 * @visibility frontend
+				 */
+				includeTeamMetadata?: boolean;
 			};
 		};
 	};

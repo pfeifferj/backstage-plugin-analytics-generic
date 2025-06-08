@@ -43,6 +43,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
   private retryLimit: number = 3;
   private eventRetryCounter: Map<string, number> = new Map();
   private debug: boolean;
+  private includeTeamMetadata: boolean;
 
   constructor(options: Options) {
     this.configApi = options.configApi;
@@ -55,6 +56,8 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 
     this.debug =
       this.configApi.getOptionalBoolean("app.analytics.generic.debug") === true;
+    this.includeTeamMetadata =
+      this.configApi.getOptionalBoolean("app.analytics.generic.includeTeamMetadata") === true;
     const configFlushIntervalMinutes = this.configApi.getOptionalNumber(
       "app.analytics.generic.interval"
     );
@@ -159,11 +162,13 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
     }
 
     let teamMetadata;
-    try {
-      teamMetadata = await this.catalogApi.getEntityByRef(user);
-    } catch (error) {
-      this.log(`Failed to get team metadata from catalog: ${error}`, true);
-      teamMetadata = undefined;
+    if (this.includeTeamMetadata) {
+      try {
+        teamMetadata = await this.catalogApi.getEntityByRef(user);
+      } catch (error) {
+        this.log(`Failed to get team metadata from catalog: ${error}`, true);
+        teamMetadata = undefined;
+      }
     }
 
     this.log(
@@ -215,11 +220,13 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
     }
 
     let teamMetadata;
-    try {
-      teamMetadata = await this.catalogApi.getEntityByRef(user);
-    } catch (error) {
-      this.log(`Failed to get team metadata from catalog: ${error}`, true);
-      teamMetadata = undefined;
+    if (this.includeTeamMetadata) {
+      try {
+        teamMetadata = await this.catalogApi.getEntityByRef(user);
+      } catch (error) {
+        this.log(`Failed to get team metadata from catalog: ${error}`, true);
+        teamMetadata = undefined;
+      }
     }
 
     this.log(
