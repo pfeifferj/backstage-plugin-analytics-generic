@@ -70,6 +70,7 @@ app:
       basicAuthToken: ${ANALYTICS_GENERIC_BASIC_AUTH} # basic auth token (optional)
       bearerAuthToken: ${ANALYTICS_GENERIC_BEARER_TOKEN} # bearer token for JWT/OAuth (optional)
       debug: true # logs events & debugging info in console & frontend. default: false (optional)
+      includeTeamMetadata: true # include team metadata from catalog API. default: false (optional)
 
 ...
 backend:
