@@ -18,10 +18,15 @@ export interface Config {
 				 */
 				interval: number;
 				/**
-				 * Auth credentials
+				 * Basic auth credentials
 				 * @deepVisibility secret
 				 */
-				basicAuthToken: string;
+				basicAuthToken?: string;
+				/**
+				 * Bearer auth token
+				 * @deepVisibility secret
+				 */
+				bearerAuthToken?: string;
 			};
 		};
 	};
