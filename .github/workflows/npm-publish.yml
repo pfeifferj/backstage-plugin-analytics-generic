@@ -45,7 +45,22 @@ jobs:
         run: yarn tsc
       - name: Build package
         run: yarn build
+      - name: Export dynamic plugin
+        run: |
+          npx @janus-idp/cli@latest package export-dynamic-plugin
+          if [ ! -d "dist-dynamic" ]; then
+            echo "Error: Dynamic plugin export failed - dist-dynamic directory not created"
+            exit 1
+          fi
+          if [ ! -f "dist-dynamic/package.json" ]; then
+            echo "Error: Dynamic plugin export incomplete - package.json not found"
+            exit 1
+          fi
       - name: Publish to npm
         run: yarn publish
+        env:
+          NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
+      - name: Publish dynamic plugin to npm
+        run: cd dist-dynamic && yarn publish
         env:
           NODE_AUTH_TOKEN: ${{secrets.NPM_TOKEN}}
