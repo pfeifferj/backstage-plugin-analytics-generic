@@ -143,24 +143,10 @@ describe('GenericAnalyticsAPI Integration Tests', () => {
         timestamp: expect.any(String),
         user: 'user:default/integration-test-user',
         sessionId: expect.any(String),
-        teamMetadata: {
-          apiVersion: 'backstage.io/v1alpha1',
-          kind: 'User',
-          metadata: {
-            name: 'integration-test-user',
-            namespace: 'default',
-          },
-          spec: {
-            profile: {
-              displayName: 'Integration Test User',
-              email: 'integration-test@example.com',
-            },
-          },
-        },
       });
 
       expect(mockIdentityApi.getBackstageIdentity).toHaveBeenCalled();
-      expect(mockCatalogApi.getEntityByRef).toHaveBeenCalledWith('user:default/integration-test-user');
+      expect(mockCatalogApi.getEntityByRef).not.toHaveBeenCalled();
     });
 
     it('should handle multiple events in sequence', async () => {
@@ -185,6 +171,82 @@ describe('GenericAnalyticsAPI Integration Tests', () => {
       // All events should have the same session ID
       const sessionIds = receivedEvents.map(e => e.sessionId);
       expect(new Set(sessionIds).size).toBe(1);
+    });
+
+    it('should include team metadata when includeTeamMetadata is enabled', async () => {
+      // Configure API with team metadata enabled
+      mockConfigApi.getOptionalBoolean.mockImplementation((key) => {
+        if (key === 'app.analytics.generic.includeTeamMetadata') return true;
+        if (key === 'app.analytics.generic.debug') return false;
+        return false;
+      });
+
+      // Create new API instance with team metadata enabled
+      const apiWithTeamMetadata = new GenericAnalyticsAPI({
+        configApi: mockConfigApi,
+        errorApi: mockErrorApi,
+        identityApi: mockIdentityApi,
+        catalogApi: mockCatalogApi,
+        sessionApi: mockSessionApi,
+      });
+
+      const event = {
+        action: 'page_view',
+        subject: 'team-catalog-page',
+        context: {
+          pluginId: 'catalog',
+          routeRef: 'catalogIndexPage',
+          extension: 'CatalogIndexPage',
+        },
+        attributes: {
+          path: '/catalog/teams',
+          userAgent: 'test-browser',
+        },
+      };
+
+      await apiWithTeamMetadata.captureEvent(event);
+
+      // Wait for async operations to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      expect(receivedEvents).toHaveLength(1);
+      
+      const receivedEvent = receivedEvents[0];
+      expect(receivedEvent).toMatchObject({
+        event: {
+          action: 'page_view',
+          subject: 'team-catalog-page',
+          context: {
+            pluginId: 'catalog',
+            routeRef: 'catalogIndexPage',
+            extension: 'CatalogIndexPage',
+          },
+          attributes: {
+            path: '/catalog/teams',
+            userAgent: 'test-browser',
+          }
+        },
+        timestamp: expect.any(String),
+        user: 'user:default/integration-test-user',
+        sessionId: expect.any(String),
+        teamMetadata: {
+          apiVersion: 'backstage.io/v1alpha1',
+          kind: 'User',
+          metadata: {
+            name: 'integration-test-user',
+            namespace: 'default',
+          },
+          spec: {
+            profile: {
+              displayName: 'Integration Test User',
+              email: 'integration-test@example.com',
+            },
+          },
+        },
+      });
+
+      expect(mockIdentityApi.getBackstageIdentity).toHaveBeenCalled();
+      expect(mockCatalogApi.getEntityByRef).toHaveBeenCalledWith('user:default/integration-test-user');
     });
 
     it('should handle authentication with basic auth', async () => {

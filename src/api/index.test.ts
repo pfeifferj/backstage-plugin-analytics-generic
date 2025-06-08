@@ -271,24 +271,11 @@ describe('GenericAnalyticsAPI', () => {
       await api.captureEvent({ action: 'test', subject: 'test', context: { pluginId: 'test', routeRef: 'test', extension: 'test' } });
 
       expect(mockIdentityApi.getBackstageIdentity).toHaveBeenCalled();
-      expect(mockCatalogApi.getEntityByRef).toHaveBeenCalledWith('user:default/test-user');
+      expect(mockCatalogApi.getEntityByRef).not.toHaveBeenCalled();
       
       const capturedEvents = (api as any).eventQueue;
       expect(capturedEvents[0].user).toBe('user:default/test-user');
-      expect(capturedEvents[0].teamMetadata).toEqual({
-        apiVersion: 'backstage.io/v1alpha1',
-        kind: 'User',
-        metadata: {
-          name: 'test-user',
-          namespace: 'default',
-        },
-        spec: {
-          profile: {
-            displayName: 'Test User',
-            email: 'test@example.com',
-          },
-        },
-      });
+      expect(capturedEvents[0].teamMetadata).toBeUndefined();
     });
 
     it('should handle user data fetch errors gracefully', async () => {
@@ -303,6 +290,116 @@ describe('GenericAnalyticsAPI', () => {
       // The error is logged but the API continues without a user
       // Event should not be captured if user fetch fails
       expect((api as any).eventQueue).toHaveLength(0);
+    });
+  });
+
+  describe('Team Metadata Configuration', () => {
+    it('should include team metadata when includeTeamMetadata is explicitly true', async () => {
+      mockConfigApi.getOptionalBoolean.mockImplementation((key) => {
+        if (key === 'app.analytics.generic.includeTeamMetadata') return true;
+        if (key === 'app.analytics.generic.debug') return false;
+        return undefined;
+      });
+
+      api = new GenericAnalyticsAPI({
+        configApi: mockConfigApi,
+        errorApi: mockErrorApi,
+        identityApi: mockIdentityApi,
+        catalogApi: mockCatalogApi,
+        sessionApi: mockSessionApi,
+      });
+
+      await api.captureEvent({ 
+        action: 'test', 
+        subject: 'test',
+        context: { pluginId: 'test', routeRef: 'test', extension: 'test' } 
+      });
+
+      expect(mockCatalogApi.getEntityByRef).toHaveBeenCalledWith('user:default/test-user');
+      expect((api as any).eventQueue).toHaveLength(1);
+      expect((api as any).eventQueue[0].teamMetadata).toBeDefined();
+    });
+
+    it('should not include team metadata when includeTeamMetadata is not set (default)', async () => {
+      // includeTeamMetadata defaults to false (not explicitly set)
+      mockConfigApi.getOptionalBoolean.mockImplementation((key) => {
+        if (key === 'app.analytics.generic.includeTeamMetadata') return undefined; // Default
+        if (key === 'app.analytics.generic.debug') return false;
+        return undefined;
+      });
+
+      api = new GenericAnalyticsAPI({
+        configApi: mockConfigApi,
+        errorApi: mockErrorApi,
+        identityApi: mockIdentityApi,
+        catalogApi: mockCatalogApi,
+        sessionApi: mockSessionApi,
+      });
+
+      await api.captureEvent({ 
+        action: 'test', 
+        subject: 'test',
+        context: { pluginId: 'test', routeRef: 'test', extension: 'test' } 
+      });
+
+      expect(mockCatalogApi.getEntityByRef).not.toHaveBeenCalled();
+      expect((api as any).eventQueue).toHaveLength(1);
+      expect((api as any).eventQueue[0].teamMetadata).toBeUndefined();
+    });
+
+    it('should not include team metadata when includeTeamMetadata is false', async () => {
+      mockConfigApi.getOptionalBoolean.mockImplementation((key) => {
+        if (key === 'app.analytics.generic.includeTeamMetadata') return false;
+        if (key === 'app.analytics.generic.debug') return false;
+        return undefined;
+      });
+
+      api = new GenericAnalyticsAPI({
+        configApi: mockConfigApi,
+        errorApi: mockErrorApi,
+        identityApi: mockIdentityApi,
+        catalogApi: mockCatalogApi,
+        sessionApi: mockSessionApi,
+      });
+
+      await api.captureEvent({ 
+        action: 'test', 
+        subject: 'test',
+        context: { pluginId: 'test', routeRef: 'test', extension: 'test' } 
+      });
+
+      expect(mockCatalogApi.getEntityByRef).not.toHaveBeenCalled();
+      expect((api as any).eventQueue).toHaveLength(1);
+      expect((api as any).eventQueue[0].teamMetadata).toBeUndefined();
+    });
+
+    it('should handle catalog API errors gracefully when team metadata is enabled', async () => {
+      mockConfigApi.getOptionalBoolean.mockImplementation((key) => {
+        if (key === 'app.analytics.generic.includeTeamMetadata') return true;
+        if (key === 'app.analytics.generic.debug') return true; // Enable debug to test error logging
+        return undefined;
+      });
+      
+      mockCatalogApi.getEntityByRef.mockRejectedValue(new Error('Catalog API error'));
+
+      api = new GenericAnalyticsAPI({
+        configApi: mockConfigApi,
+        errorApi: mockErrorApi,
+        identityApi: mockIdentityApi,
+        catalogApi: mockCatalogApi,
+        sessionApi: mockSessionApi,
+      });
+
+      await api.captureEvent({ 
+        action: 'test', 
+        subject: 'test',
+        context: { pluginId: 'test', routeRef: 'test', extension: 'test' } 
+      });
+
+      expect(mockCatalogApi.getEntityByRef).toHaveBeenCalledWith('user:default/test-user');
+      expect((api as any).eventQueue).toHaveLength(1);
+      expect((api as any).eventQueue[0].teamMetadata).toBeUndefined();
+      expect(mockErrorApi.post).toHaveBeenCalledWith(expect.any(Error));
     });
   });
 
