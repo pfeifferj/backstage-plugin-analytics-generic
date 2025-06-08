@@ -55,6 +55,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
     this.debug =
       this.configApi.getOptionalBoolean("app.analytics.generic.debug") === true;
     if (this.debug) {
+      // eslint-disable-next-line no-console
       console.log("Debug mode is enabled.");
     }
     const configFlushIntervalMinutes = this.configApi.getOptionalNumber(
@@ -119,25 +120,32 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 
   private readSessionIdFromCookie(): string | undefined {
     const name = "sessionId=";
-    const decodedCookie = decodeURIComponent(document.cookie);
-    const ca = decodedCookie.split(";");
-    for (let i = 0; i < ca.length; i++) {
-      let c = ca[i];
-      while (c.charAt(0) === " ") {
-        c = c.substring(1);
+    try {
+      const decodedCookie = decodeURIComponent(document.cookie);
+      const ca = decodedCookie.split(";");
+      for (let i = 0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0) === " ") {
+          c = c.substring(1);
+        }
+        if (c.indexOf(name) === 0) {
+          return c.substring(name.length, c.length);
+        }
       }
-      if (c.indexOf(name) === 0) {
-        return c.substring(name.length, c.length);
-      }
+      return undefined;
+    } catch (error) {
+      this.log(`Failed to decode cookie: ${error}`, true);
+      return undefined;
     }
-    return undefined;
   }
 
   private log(message: string, isError: boolean = false): void {
     if (this.debug) {
       if (isError) {
+        // eslint-disable-next-line no-console
         console.error(message);
       } else {
+        // eslint-disable-next-line no-console
         console.log(message);
       }
     }
@@ -157,17 +165,16 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
       return;
     }
 
-    const teamMetadata = await this.catalogApi.getEntityByRef(user);
+    let teamMetadata;
+    try {
+      teamMetadata = await this.catalogApi.getEntityByRef(user);
+    } catch (error) {
+      this.log(`Failed to get team metadata from catalog: ${error}`, true);
+      teamMetadata = undefined;
+    }
 
     this.log(
-      "Capturing event: " +
-        JSON.stringify(event) +
-        " User ID: " +
-        user +
-        " Team Metadata: " +
-        JSON.stringify(teamMetadata) +
-        " Session ID: " +
-        this.sessionId
+      `Capturing event: ${JSON.stringify(event)} User ID: ${user} Team Metadata: ${JSON.stringify(teamMetadata)} Session ID: ${this.sessionId}`
     );
 
     this.eventQueue.push({
@@ -214,17 +221,16 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
       return;
     }
 
-    const teamMetadata = await this.catalogApi.getEntityByRef(user);
+    let teamMetadata;
+    try {
+      teamMetadata = await this.catalogApi.getEntityByRef(user);
+    } catch (error) {
+      this.log(`Failed to get team metadata from catalog: ${error}`, true);
+      teamMetadata = undefined;
+    }
 
     this.log(
-      "Capturing event: " +
-        JSON.stringify(event) +
-        " User ID: " +
-        user +
-        " Team Metadata: " +
-        JSON.stringify(teamMetadata) +
-        " Session ID: " +
-        this.sessionId
+      `Capturing event: ${JSON.stringify(event)} User ID: ${user} Team Metadata: ${JSON.stringify(teamMetadata)} Session ID: ${this.sessionId}`
     );
 
     const eventWithTimestamp = {
@@ -270,7 +276,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
         "Content-Type": "application/json",
       };
       if (this.basicAuthToken) {
-        headers["Authorization"] = `Basic ${this.basicAuthToken}`;
+        headers.Authorization = `Basic ${this.basicAuthToken}`;
       }
 
       const response = await fetch(this.endpoint, {
