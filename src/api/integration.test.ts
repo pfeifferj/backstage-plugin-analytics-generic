@@ -366,12 +366,8 @@ describe('GenericAnalyticsAPI Integration Tests', () => {
 
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // eslint-disable-next-line no-console
-      expect(console.log).toHaveBeenCalledWith('Debug mode is enabled.');
-      // eslint-disable-next-line no-console
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('instantCaptureEvent called with event')
-      );
+      // Debug mode no longer uses console.log for non-error messages
+      // Only errors would use errorApi in debug mode
       expect(receivedEvents).toHaveLength(1);
     });
 

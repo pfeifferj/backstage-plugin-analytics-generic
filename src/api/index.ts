@@ -54,10 +54,6 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
 
     this.debug =
       this.configApi.getOptionalBoolean("app.analytics.generic.debug") === true;
-    if (this.debug) {
-      // eslint-disable-next-line no-console
-      console.log("Debug mode is enabled.");
-    }
     const configFlushIntervalMinutes = this.configApi.getOptionalNumber(
       "app.analytics.generic.interval"
     );
@@ -70,7 +66,6 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
       "app.analytics.generic.basicAuthToken"
     );
 
-    // Handle session state changes with error handling
     try {
       this.sessionApi.sessionState$().subscribe(this.handleSessionStateChange);
     } catch (error) {
@@ -140,14 +135,8 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
   }
 
   private log(message: string, isError: boolean = false): void {
-    if (this.debug) {
-      if (isError) {
-        // eslint-disable-next-line no-console
-        console.error(message);
-      } else {
-        // eslint-disable-next-line no-console
-        console.log(message);
-      }
+    if (this.debug && isError) {
+      this.errorApi.post(new Error(`Analytics: ${message}`));
     }
   }
 
