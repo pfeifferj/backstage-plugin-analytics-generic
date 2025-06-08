@@ -1,19 +1,18 @@
 import {
-  ApiRef,
   configApiRef,
   createApiFactory,
   createPlugin,
-  createApiRef,
   analyticsApiRef,
   errorApiRef,
   identityApiRef,
+  createApiRef,
   SessionApi,
 } from "@backstage/core-plugin-api";
 import { rootRouteRef } from "./routes";
 import { catalogApiRef } from "@backstage/plugin-catalog-react";
 import { GenericAnalyticsAPI } from "./api";
 
-export const sessionApiRef: ApiRef<SessionApi> = createApiRef({
+export const sessionApiRef = createApiRef<SessionApi>({
   id: "core.auth.session",
 });
 

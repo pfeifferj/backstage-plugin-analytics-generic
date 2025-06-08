@@ -3,6 +3,7 @@ dist
 dist-types
 dist-dynamic
 coverage
+.eslintrc.js
 
 # IDE files
 .vscode/

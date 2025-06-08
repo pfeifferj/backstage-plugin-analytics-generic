@@ -1,2 +1,3 @@
+export { analyticsModuleGenericPlugin as default } from './plugin';
 export { analyticsModuleGenericPlugin } from './plugin';
-export * from './api';
+export { GenericAnalyticsAPI } from './api';

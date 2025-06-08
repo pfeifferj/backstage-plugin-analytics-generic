@@ -61,7 +61,9 @@ describe('GenericAnalyticsAPI', () => {
       getSession: jest.fn().mockResolvedValue({ userId: 'test-user-id' }),
       signIn: jest.fn(),
       signOut: jest.fn(),
-      sessionState$: jest.fn(),
+      sessionState$: jest.fn().mockReturnValue({
+        subscribe: jest.fn()
+      }),
     };
 
     // Default config values
@@ -349,12 +351,12 @@ describe('GenericAnalyticsAPI', () => {
         sessionApi: mockSessionApi,
       });
       
-      const spy = jest.spyOn(console, 'log').mockImplementation();
-      
       // Call flushEvents with empty array
-      await (debugApi as any).flushEvents([]);
+      const result = await (debugApi as any).flushEvents([]);
       
-      expect(spy).toHaveBeenCalledWith('No events to flush.');
+      // Should handle empty array gracefully without errors
+      expect(result).toBeUndefined();
+      expect(mockErrorApi.post).not.toHaveBeenCalled();
     });
 
     it('should handle missing identityApi gracefully', async () => {
@@ -486,7 +488,7 @@ describe('GenericAnalyticsAPI', () => {
   });
 
   describe('Debug Mode', () => {
-    it('should log events in debug mode', async () => {
+    it('should handle debug mode properly', async () => {
       mockConfigApi.getOptionalBoolean.mockReturnValue(true); // debug mode on
       
       api = new GenericAnalyticsAPI({
@@ -499,24 +501,19 @@ describe('GenericAnalyticsAPI', () => {
 
       await api.captureEvent({ action: 'test', subject: 'test-subject', context: { pluginId: 'test', routeRef: 'test', extension: 'test' } });
 
-      // Should log debug information
-      // eslint-disable-next-line no-console
-      expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('captureEvent called with event')
-      );
+      // Debug mode is enabled but only errors should use errorApi
+      // Non-error debug logs are omitted for production readiness
+      expect(mockErrorApi.post).not.toHaveBeenCalled();
     });
 
-    it('should not log in non-debug mode', async () => {
+    it('should not trigger error logging in non-debug mode', async () => {
       await api.captureEvent({ action: 'test', subject: 'test-subject', context: { pluginId: 'test', routeRef: 'test', extension: 'test' } });
 
-      // Should not call log for debug messages in non-debug mode
-      // eslint-disable-next-line no-console
-      expect(console.log).not.toHaveBeenCalledWith(
-        expect.stringContaining('captureEvent called with event')
-      );
+      // Should not call errorApi for normal operations
+      expect(mockErrorApi.post).not.toHaveBeenCalled();
     });
 
-    it('should log error messages in debug mode', () => {
+    it('should use errorApi for error messages in debug mode', () => {
       mockConfigApi.getOptionalBoolean.mockReturnValue(true);
       
       const debugApi = new GenericAnalyticsAPI({
@@ -530,11 +527,14 @@ describe('GenericAnalyticsAPI', () => {
       // Call the private log method with error flag
       (debugApi as any).log('Test error message', true);
 
-      // eslint-disable-next-line no-console
-      expect(console.error).toHaveBeenCalledWith('Test error message');
+      expect(mockErrorApi.post).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Analytics: Test error message'
+        })
+      );
     });
 
-    it('should log regular messages in debug mode', () => {
+    it('should not log regular messages in debug mode', () => {
       mockConfigApi.getOptionalBoolean.mockReturnValue(true);
       
       const debugApi = new GenericAnalyticsAPI({
@@ -548,11 +548,11 @@ describe('GenericAnalyticsAPI', () => {
       // Call the private log method without error flag
       (debugApi as any).log('Test info message', false);
 
-      // eslint-disable-next-line no-console
-      expect(console.log).toHaveBeenCalledWith('Test info message');
+      // Non-error debug messages are omitted for production readiness
+      expect(mockErrorApi.post).not.toHaveBeenCalled();
     });
 
-    it('should not log when debug mode is off', () => {
+    it('should not use errorApi when debug mode is off', () => {
       mockConfigApi.getOptionalBoolean.mockReturnValue(false);
       
       const nonDebugApi = new GenericAnalyticsAPI({
@@ -570,10 +570,8 @@ describe('GenericAnalyticsAPI', () => {
       (nonDebugApi as any).log('Should not log this', false);
       (nonDebugApi as any).log('Should not log this error', true);
 
-      // eslint-disable-next-line no-console
-      expect(console.log).not.toHaveBeenCalled();
-      // eslint-disable-next-line no-console
-      expect(console.error).not.toHaveBeenCalled();
+      // Should not call errorApi when debug mode is off
+      expect(mockErrorApi.post).not.toHaveBeenCalled();
     });
   });
 
