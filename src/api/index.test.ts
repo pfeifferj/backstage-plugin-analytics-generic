@@ -439,8 +439,8 @@ describe('GenericAnalyticsAPI', () => {
       expect((testApi as any).captureEvent).toBe((testApi as any).instantCaptureEvent);
     });
 
-    it('should store auth token if configured', async () => {
-      mockConfigApi.getOptionalString.mockReturnValue('test-auth-token');
+    it('should store basic auth token if configured', async () => {
+      mockConfigApi.getOptionalString.mockReturnValueOnce('test-basic-auth-token').mockReturnValueOnce(undefined);
       
       const testApi = new GenericAnalyticsAPI({
         configApi: mockConfigApi,
@@ -450,8 +450,41 @@ describe('GenericAnalyticsAPI', () => {
         sessionApi: mockSessionApi,
       });
 
-      // Check that the auth token is stored correctly
-      expect((testApi as any).basicAuthToken).toBe('test-auth-token');
+      // Check that the basic auth token is stored correctly
+      expect((testApi as any).basicAuthToken).toBe('test-basic-auth-token');
+      expect((testApi as any).bearerAuthToken).toBeUndefined();
+    });
+
+    it('should store bearer auth token if configured', async () => {
+      mockConfigApi.getOptionalString.mockReturnValueOnce(undefined).mockReturnValueOnce('test-bearer-token');
+      
+      const testApi = new GenericAnalyticsAPI({
+        configApi: mockConfigApi,
+        errorApi: mockErrorApi,
+        identityApi: mockIdentityApi,
+        catalogApi: mockCatalogApi,
+        sessionApi: mockSessionApi,
+      });
+
+      // Check that the bearer auth token is stored correctly
+      expect((testApi as any).basicAuthToken).toBeUndefined();
+      expect((testApi as any).bearerAuthToken).toBe('test-bearer-token');
+    });
+
+    it('should prioritize basic auth over bearer auth if both are configured', async () => {
+      mockConfigApi.getOptionalString.mockReturnValueOnce('test-basic-auth').mockReturnValueOnce('test-bearer-auth');
+      
+      const testApi = new GenericAnalyticsAPI({
+        configApi: mockConfigApi,
+        errorApi: mockErrorApi,
+        identityApi: mockIdentityApi,
+        catalogApi: mockCatalogApi,
+        sessionApi: mockSessionApi,
+      });
+
+      // Both should be stored
+      expect((testApi as any).basicAuthToken).toBe('test-basic-auth');
+      expect((testApi as any).bearerAuthToken).toBe('test-bearer-auth');
     });
 
     it('should queue events correctly', async () => {

@@ -39,6 +39,7 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
   }[] = [];
   private flushInterval: number;
   private basicAuthToken?: string;
+  private bearerAuthToken?: string;
   private retryLimit: number = 3;
   private eventRetryCounter: Map<string, number> = new Map();
   private debug: boolean;
@@ -64,6 +65,9 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
         : 30 * 60 * 1000; // Default to 30 minutes if not specified
     this.basicAuthToken = this.configApi.getOptionalString(
       "app.analytics.generic.basicAuthToken"
+    );
+    this.bearerAuthToken = this.configApi.getOptionalString(
+      "app.analytics.generic.bearerAuthToken"
     );
 
     try {
@@ -266,6 +270,8 @@ export class GenericAnalyticsAPI implements AnalyticsAPI {
       };
       if (this.basicAuthToken) {
         headers.Authorization = `Basic ${this.basicAuthToken}`;
+      } else if (this.bearerAuthToken) {
+        headers.Authorization = `Bearer ${this.bearerAuthToken}`;
       }
 
       const response = await fetch(this.endpoint, {

@@ -188,7 +188,7 @@ describe('GenericAnalyticsAPI Integration Tests', () => {
     });
 
     it('should handle authentication with basic auth', async () => {
-      mockConfigApi.getOptionalString.mockReturnValue('dGVzdDp0ZXN0'); // base64 encoded 'test:test'
+      mockConfigApi.getOptionalString.mockReturnValueOnce('dGVzdDp0ZXN0').mockReturnValueOnce(undefined); // basic auth only
       
       // Setup new API with auth token
       const authApi = new GenericAnalyticsAPI({
@@ -218,6 +218,40 @@ describe('GenericAnalyticsAPI Integration Tests', () => {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       expect(authHeader).toBe('Basic dGVzdDp0ZXN0');
+      expect(receivedEvents).toHaveLength(1);
+    });
+
+    it('should handle authentication with bearer token', async () => {
+      mockConfigApi.getOptionalString.mockReturnValueOnce(undefined).mockReturnValueOnce('test-bearer-token-123'); // bearer auth only
+      
+      // Setup new API with bearer token
+      const authApi = new GenericAnalyticsAPI({
+        configApi: mockConfigApi,
+        errorApi: mockErrorApi,
+        identityApi: mockIdentityApi,
+        catalogApi: mockCatalogApi,
+        sessionApi: mockSessionApi,
+      });
+
+      let authHeader = '';
+      mockServer.use(
+        rest.post(endpoint, async (req, res, ctx) => {
+          authHeader = req.headers.get('Authorization') || '';
+          const body = await req.json();
+          receivedEvents.push(...body as any[]);
+          return res(ctx.status(200), ctx.json({ success: true }));
+        })
+      );
+
+      await authApi.captureEvent({
+        action: 'test',
+        subject: 'bearer-auth-test',
+        context: { pluginId: 'test', routeRef: 'test', extension: 'test' }
+      });
+
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      expect(authHeader).toBe('Bearer test-bearer-token-123');
       expect(receivedEvents).toHaveLength(1);
     });
 
