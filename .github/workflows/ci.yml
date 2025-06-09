@@ -35,6 +35,14 @@ jobs:
       - name: Build package
         run: yarn build
         
+      - name: Test dynamic plugin conversion
+        run: |
+          npx @janus-idp/cli@latest package export-dynamic-plugin
+          if [ ! -d "dist-dynamic" ]; then
+            echo "Error: Dynamic plugin export failed - dist-dynamic directory not created"
+            exit 1
+          fi
+        
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
