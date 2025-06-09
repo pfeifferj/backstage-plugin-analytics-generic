@@ -7,6 +7,10 @@ This module is made to work with backstage's built-in analytics plugin. The usag
 
 ## Installation
 
+This plugin supports both traditional Backstage installation and Red Hat Developer Hub (RHDH) dynamic plugin deployment.
+
+### Traditional Backstage Installation
+
 1. Install the plugin package in your Backstage app:
 
 ```sh
@@ -87,3 +91,29 @@ The plugin supports two authentication methods for securing your analytics endpo
 - **Bearer Token**: Set `bearerAuthToken` to a JWT token or OAuth bearer token
 
 If both are configured, basic authentication takes precedence. Choose the method that matches your endpoint's authentication requirements.
+
+### Red Hat Developer Hub (RHDH) Dynamic Plugin Installation
+
+For RHDH deployments, you can install this plugin dynamically without rebuilding your application.
+
+#### Using NPM Package
+
+Add to your RHDH dynamic plugins configuration:
+
+```yaml
+global:
+  dynamic:
+    plugins:
+      - package: '@pfeifferj/backstage-plugin-analytics-generic-dynamic@latest'
+        disabled: false
+        pluginConfig:
+          app:
+            analytics:
+              generic:
+                host: ${ANALYTICS_GENERIC_HOST}
+                interval: ${ANALYTICS_GENERIC_INTERVAL}
+                basicAuthToken: ${ANALYTICS_GENERIC_BASIC_AUTH}
+                bearerAuthToken: ${ANALYTICS_GENERIC_BEARER_TOKEN}
+                debug: true
+                includeTeamMetadata: true
+```
